@@ -7,10 +7,6 @@ const stack = new Stack();
 new ValheimServer(stack, 'Test');
 const template = Template.fromStack(stack);
 
-test('snapshot', () => {
-  expect(stack).toMatchSnapshot();
-});
-
 test('default vpc is created', () => {
   template.hasResourceProperties('AWS::EC2::VPC', Match.anyValue());
 });
