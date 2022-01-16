@@ -1,9 +1,11 @@
-import * as ec2 from '@aws-cdk/aws-ec2';
-import * as ecs from '@aws-cdk/aws-ecs';
-import * as efs from '@aws-cdk/aws-efs';
-import * as elb from '@aws-cdk/aws-elasticloadbalancingv2';
-import * as secretsmanager from '@aws-cdk/aws-secretsmanager';
-import { Construct, Duration, RemovalPolicy } from '@aws-cdk/core';
+import { Duration, RemovalPolicy } from 'aws-cdk-lib';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as ecs from 'aws-cdk-lib/aws-ecs';
+import * as efs from 'aws-cdk-lib/aws-efs';
+import * as elb from 'aws-cdk-lib/aws-elasticloadbalancingv2';
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
+import { Construct } from 'constructs';
+
 
 const VALHEIM_PORT = 2456;
 const VALHEIM_SAVE_DIR = '/root/.config/unity3d/IronGate/Valheim';
@@ -71,14 +73,7 @@ export interface ValheimServerProps {
    * @default DEFAULT_IMAGE
    */
   readonly image?: string;
-
-  /**
-   * If we are deployed in a public subnet we need a public IP assigned to
-   * access the internet. By default we deploy to a public VPC.
-   *
-   * @default true
-   */
-  readonly assignPublicIp?: boolean; }
+}
 
 /**
  * Builds a ValheimServer, running on ECS Fargate. This is designed to run as
@@ -102,7 +97,6 @@ export class ValheimServer extends Construct {
   readonly generatedServerPasswordSecretName: string;
   readonly containerInsights: boolean;
   readonly logging: ecs.LogDriver | undefined;
-  readonly assignPublicIp: boolean;
 
   constructor(scope: Construct, id: string, props: ValheimServerProps = {}) {
     super(scope, id);
@@ -129,7 +123,6 @@ export class ValheimServer extends Construct {
     this.generatedServerPasswordSecretName = props.generatedServerPasswordSecretName || DEFAULT_SERVER_PASSWORD_SECRET_NAME;
     this.containerInsights = !!props.containerInsights;
     this.logging = props.logging;
-    this.assignPublicIp = (props.assignPublicIp == undefined) ? true : false;
 
     this.serverPasswordSecret = props.serverPasswordSecret || new secretsmanager.Secret(this, 'GeneratedServerPasswordSecret', {
       secretName: props.generatedServerPasswordSecretName,
@@ -153,7 +146,6 @@ export class ValheimServer extends Construct {
     const cluster = new ecs.Cluster(this, 'Cluster', {
       vpc: this.vpc,
       containerInsights: this.containerInsights,
-      capacityProviders: ['FARGATE', 'FARGATE_SPOT'],
     });
 
     //Create our ECS TaskDefinition using our cpu and memory limits
@@ -206,7 +198,7 @@ export class ValheimServer extends Construct {
       desiredCount: 1,
       securityGroups: [securityGroup],
       platformVersion: ecs.FargatePlatformVersion.VERSION1_4,
-      assignPublicIp: this.assignPublicIp,
+      assignPublicIp: true,
       capacityProviderStrategies: [
         {
           capacityProvider: 'FARGATE_SPOT',

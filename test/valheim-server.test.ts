@@ -1,26 +1,26 @@
-import { SynthUtils } from '@aws-cdk/assert';
-import { Stack } from '@aws-cdk/core';
-import '@aws-cdk/assert/jest';
+import { Match, Template } from 'aws-cdk-lib/assertions';
+import { Stack } from 'aws-cdk-lib/core';
 
 import { ValheimServer } from '../src/index';
 
 const stack = new Stack();
 new ValheimServer(stack, 'Test');
+const template = Template.fromStack(stack);
 
 test('snapshot', () => {
-  expect(SynthUtils.toCloudFormation(stack)).toMatchSnapshot();
+  expect(stack).toMatchSnapshot();
 });
 
 test('default vpc is created', () => {
-  expect(stack).toHaveResource('AWS::EC2::VPC');
+  template.hasResourceProperties('AWS::EC2::VPC', Match.anyValue());
 });
 
 test('ECS cluster is created', () => {
-  expect(stack).toHaveResource('AWS::ECS::Cluster');
+  template.hasResourceProperties('AWS::ECS::Cluster', Match.anyValue());
 });
 
 test('SecurityGroup allows UDP 2456-2457 from everywhere, and 80 from the VPC', () => {
-  expect(stack).toHaveResourceLike('AWS::EC2::SecurityGroup', {
+  template.hasResourceProperties('AWS::EC2::SecurityGroup', {
     SecurityGroupIngress: [
       {
         CidrIp: '0.0.0.0/0',
