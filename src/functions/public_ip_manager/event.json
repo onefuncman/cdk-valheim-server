@@ -1,0 +1,128 @@
+{
+    "version": "0",
+    "id": "490a9a42-3301-6f04-f30f-7cb2a82b42ae",
+    "detail-type": "ECS Task State Change",
+    "source": "aws.ecs",
+    "account": "853009612345",
+    "time": "2022-01-17T18:39:11Z",
+    "region": "us-east-2",
+    "resources": [
+        "arn:aws:ecs:us-east-2:853009612345:task/valheim-ValheimClusterF4A766EB-sXt49RPx3Bz3/6a52351a8f93436aa3fbe934e1f5416f"
+    ],
+    "detail": {
+        "attachments": [
+            {
+                "id": "5bc45714-547b-444f-ba59-5e4dfae467a6",
+                "type": "elb",
+                "status": "ATTACHED",
+                "details": []
+            },
+            {
+                "id": "7e9af4ca-805b-4a64-9dd2-99ddb5d5a9f8",
+                "type": "eni",
+                "status": "ATTACHED",
+                "details": [
+                    {
+                        "name": "subnetId",
+                        "value": "subnet-083468f1aece61b7a"
+                    },
+                    {
+                        "name": "networkInterfaceId",
+                        "value": "eni-062b5aa0c96d00386"
+                    },
+                    {
+                        "name": "macAddress",
+                        "value": "02:5b:de:99:d1:92"
+                    },
+                    {
+                        "name": "privateDnsName",
+                        "value": "ip-10-0-45-33.us-east-2.compute.internal"
+                    },
+                    {
+                        "name": "privateIPv4Address",
+                        "value": "10.0.45.33"
+                    }
+                ]
+            },
+            {
+                "id": "cca5a817-605a-49f8-856a-557697353d42",
+                "type": "elb",
+                "status": "ATTACHED",
+                "details": []
+            }
+        ],
+        "attributes": [
+            {
+                "name": "ecs.cpu-architecture",
+                "value": "x86_64"
+            }
+        ],
+        "availabilityZone": "us-east-2a",
+        "capacityProviderName": "FARGATE_SPOT",
+        "clusterArn": "arn:aws:ecs:us-east-2:853009612345:cluster/valheim-ValheimClusterF4A766EB-sXt49RPx3Bz3",
+        "connectivity": "CONNECTED",
+        "connectivityAt": "2022-01-17T18:38:03.49Z",
+        "containers": [
+            {
+                "containerArn": "arn:aws:ecs:us-east-2:853009612345:container/valheim-ValheimClusterF4A766EB-sXt49RPx3Bz3/6a52351a8f93436aa3fbe934e1f5416f/4db15916-79fd-4e40-a6f3-bda72ce17e8b",
+                "lastStatus": "RUNNING",
+                "name": "server",
+                "image": "raykrueger/valheim",
+                "runtimeId": "6a52351a8f93436aa3fbe934e1f5416f-1085029842",
+                "taskArn": "arn:aws:ecs:us-east-2:853009612345:task/valheim-ValheimClusterF4A766EB-sXt49RPx3Bz3/6a52351a8f93436aa3fbe934e1f5416f",
+                "networkInterfaces": [
+                    {
+                        "attachmentId": "7e9af4ca-805b-4a64-9dd2-99ddb5d5a9f8",
+                        "privateIpv4Address": "10.0.45.33"
+                    }
+                ],
+                "cpu": "0"
+            },
+            {
+                "containerArn": "arn:aws:ecs:us-east-2:853009612345:container/valheim-ValheimClusterF4A766EB-sXt49RPx3Bz3/6a52351a8f93436aa3fbe934e1f5416f/bcd6b604-07e0-4ff7-a142-5f71062712b8",
+                "lastStatus": "RUNNING",
+                "name": "nginx",
+                "image": "nginx:alpine",
+                "runtimeId": "6a52351a8f93436aa3fbe934e1f5416f-2531612879",
+                "taskArn": "arn:aws:ecs:us-east-2:853009612345:task/valheim-ValheimClusterF4A766EB-sXt49RPx3Bz3/6a52351a8f93436aa3fbe934e1f5416f",
+                "networkInterfaces": [
+                    {
+                        "attachmentId": "7e9af4ca-805b-4a64-9dd2-99ddb5d5a9f8",
+                        "privateIpv4Address": "10.0.45.33"
+                    }
+                ],
+                "cpu": "0"
+            }
+        ],
+        "cpu": "1024",
+        "createdAt": "2022-01-17T18:38:00.096Z",
+        "desiredStatus": "RUNNING",
+        "enableExecuteCommand": false,
+        "ephemeralStorage": {
+            "sizeInGiB": 20
+        },
+        "group": "service:valheim-ValheimServiceB5F5F9DD-q1ljdrBlBbKu",
+        "launchType": "FARGATE",
+        "lastStatus": "RUNNING",
+        "memory": "8192",
+        "overrides": {
+            "containerOverrides": [
+                {
+                    "name": "server"
+                },
+                {
+                    "name": "nginx"
+                }
+            ]
+        },
+        "platformVersion": "1.4.0",
+        "pullStartedAt": "2022-01-17T18:38:14.971Z",
+        "pullStoppedAt": "2022-01-17T18:38:46.331Z",
+        "startedAt": "2022-01-17T18:39:11.496Z",
+        "startedBy": "ecs-svc/1464447383213539889",
+        "taskArn": "arn:aws:ecs:us-east-2:853009612345:task/valheim-ValheimClusterF4A766EB-sXt49RPx3Bz3/6a52351a8f93436aa3fbe934e1f5416f",
+        "taskDefinitionArn": "arn:aws:ecs:us-east-2:853009612345:task-definition/valheimValheimTaskDef6122CDF5:2",
+        "updatedAt": "2022-01-17T18:39:11.496Z",
+        "version": 5
+    }
+}

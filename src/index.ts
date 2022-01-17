@@ -1,3 +1,4 @@
+import { PublicIPSupport, Route53DomainProps } from './public_ip_support';
 import { Duration, RemovalPolicy } from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
@@ -73,6 +74,8 @@ export interface ValheimServerProps {
    * @default DEFAULT_IMAGE
    */
   readonly image?: string;
+
+  dnsConfig?: Route53DomainProps;
 }
 
 /**
@@ -147,6 +150,11 @@ export class ValheimServer extends Construct {
       vpc: this.vpc,
       containerInsights: this.containerInsights,
       enableFargateCapacityProviders: true,
+    });
+
+    new PublicIPSupport(this, 'PublicIPSupport', {
+      cluster: cluster,
+      dnsConfig: props.dnsConfig
     });
 
     // see https://github.com/aws/aws-cdk/issues/15366
@@ -227,6 +235,7 @@ export class ValheimServer extends Construct {
     });
     nginx.addPortMappings({ containerPort: 80, hostPort: 80, protocol: ecs.Protocol.TCP });
     securityGroup.addIngressRule(ec2.Peer.ipv4(this.vpc.vpcCidrBlock), ec2.Port.tcp(80));
+
 
     //Setup our NLB, listners, and targets, all set for UDP and the Valheim port
     const lb = new elb.NetworkLoadBalancer(this, 'LoadBalancer', {
