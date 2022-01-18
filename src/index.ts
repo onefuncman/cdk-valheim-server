@@ -1,9 +1,8 @@
 import { PublicIPSupport, Route53DomainProps } from './public_ip_support';
-import { Duration, RemovalPolicy } from 'aws-cdk-lib';
+import { Names, RemovalPolicy, Tags } from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as efs from 'aws-cdk-lib/aws-efs';
-import * as elb from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 
@@ -135,12 +134,12 @@ export class ValheimServer extends Construct {
     });
 
     //Define our EFS file system
-    const fs = new efs.FileSystem(this, 'MyEfsFileSystem', {
+    const fs = new efs.FileSystem(this, 'ValheimFileSystem', {
       vpc: this.vpc,
       encrypted: true,
-      lifecyclePolicy: efs.LifecyclePolicy.AFTER_14_DAYS,
       performanceMode: efs.PerformanceMode.GENERAL_PURPOSE,
       removalPolicy: RemovalPolicy.RETAIN,
+      enableAutomaticBackups: true
     });
     fs.addAccessPoint('AccessPoint');
     fs.connections.allowDefaultPortInternally();
@@ -206,13 +205,15 @@ export class ValheimServer extends Construct {
          * FargatePlatformVerssion VERSION1_4 is required here!
          * LATEST is not yet 1.4 at the time of thi writing
          */
-    const service = new ecs.FargateService(this, 'Service', {
+    new ecs.FargateService(this, 'Service', {
       cluster: cluster,
       taskDefinition: taskDef,
       desiredCount: 1,
       securityGroups: [securityGroup],
       platformVersion: ecs.FargatePlatformVersion.VERSION1_4,
       assignPublicIp: true,
+      maxHealthyPercent: 100,
+      minHealthyPercent: 0,
       capacityProviderStrategies: [
         {
           capacityProvider: 'FARGATE_SPOT',
@@ -223,55 +224,6 @@ export class ValheimServer extends Construct {
           weight: 1,
         },
       ],
-    });
-
-    /**
-         * Here we add nginx as a simple sidecar conatiner for healtchecking.
-         * The NLB cannot health check a UDP based service. Adding nginx,
-         * running as part of the same task, gives us something to healthcheck.
-         */
-    const nginx = taskDef.addContainer('nginx', {
-      image: ecs.ContainerImage.fromRegistry('nginx:alpine'),
-    });
-    nginx.addPortMappings({ containerPort: 80, hostPort: 80, protocol: ecs.Protocol.TCP });
-    securityGroup.addIngressRule(ec2.Peer.ipv4(this.vpc.vpcCidrBlock), ec2.Port.tcp(80));
-
-
-    //Setup our NLB, listners, and targets, all set for UDP and the Valheim port
-    const lb = new elb.NetworkLoadBalancer(this, 'LoadBalancer', {
-      vpc: this.vpc,
-      internetFacing: true,
-    });
-
-    const listener = lb.addListener('Listener', { port: VALHEIM_PORT, protocol: elb.Protocol.UDP });
-    listener.addTargets('Targets', {
-      port: VALHEIM_PORT,
-      protocol: elb.Protocol.UDP,
-      targets: [service.loadBalancerTarget({ containerName: 'server', protocol: ecs.Protocol.UDP, containerPort: VALHEIM_PORT })],
-      healthCheck: { //NOTE we are healthchecking our nginx sidecar here, not the Valheim game itself
-        enabled: true,
-        port: '80',
-        protocol: elb.Protocol.TCP,
-        healthyThresholdCount: 2,
-        unhealthyThresholdCount: 2,
-      },
-      deregistrationDelay: Duration.seconds(30),
-    });
-
-    //The NLB cannot do port ranges, so here we are.
-    const otherListener = lb.addListener('OtherListener', { port: VALHEIM_PORT+1, protocol: elb.Protocol.UDP });
-    otherListener.addTargets('Targets', {
-      port: VALHEIM_PORT+1,
-      protocol: elb.Protocol.UDP,
-      targets: [service.loadBalancerTarget({ containerName: 'server', protocol: ecs.Protocol.UDP, containerPort: VALHEIM_PORT+1 })],
-      healthCheck: { //NOTE we are healthchecking our nginx sidecar here, not the Valheim game itself
-        enabled: true,
-        port: '80',
-        protocol: elb.Protocol.TCP,
-        healthyThresholdCount: 2,
-        unhealthyThresholdCount: 2,
-      },
-      deregistrationDelay: Duration.seconds(30),
     });
   }
 }
