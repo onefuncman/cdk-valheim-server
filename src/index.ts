@@ -1,9 +1,11 @@
-import * as ec2 from '@aws-cdk/aws-ec2';
-import * as ecs from '@aws-cdk/aws-ecs';
-import * as efs from '@aws-cdk/aws-efs';
-import * as elb from '@aws-cdk/aws-elasticloadbalancingv2';
-import * as secretsmanager from '@aws-cdk/aws-secretsmanager';
-import { Construct, Duration, RemovalPolicy } from '@aws-cdk/core';
+import { PublicIPSupport, Route53DomainProps } from './public_ip_support';
+import { Names, RemovalPolicy, Tags } from 'aws-cdk-lib';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as ecs from 'aws-cdk-lib/aws-ecs';
+import * as efs from 'aws-cdk-lib/aws-efs';
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
+import { Construct } from 'constructs';
+
 
 const VALHEIM_PORT = 2456;
 const VALHEIM_SAVE_DIR = '/root/.config/unity3d/IronGate/Valheim';
@@ -72,13 +74,8 @@ export interface ValheimServerProps {
    */
   readonly image?: string;
 
-  /**
-   * If we are deployed in a public subnet we need a public IP assigned to
-   * access the internet. By default we deploy to a public VPC.
-   *
-   * @default true
-   */
-  readonly assignPublicIp?: boolean; }
+  dnsConfig?: Route53DomainProps;
+}
 
 /**
  * Builds a ValheimServer, running on ECS Fargate. This is designed to run as
@@ -102,7 +99,6 @@ export class ValheimServer extends Construct {
   readonly generatedServerPasswordSecretName: string;
   readonly containerInsights: boolean;
   readonly logging: ecs.LogDriver | undefined;
-  readonly assignPublicIp: boolean;
 
   constructor(scope: Construct, id: string, props: ValheimServerProps = {}) {
     super(scope, id);
@@ -129,7 +125,6 @@ export class ValheimServer extends Construct {
     this.generatedServerPasswordSecretName = props.generatedServerPasswordSecretName || DEFAULT_SERVER_PASSWORD_SECRET_NAME;
     this.containerInsights = !!props.containerInsights;
     this.logging = props.logging;
-    this.assignPublicIp = (props.assignPublicIp == undefined) ? true : false;
 
     this.serverPasswordSecret = props.serverPasswordSecret || new secretsmanager.Secret(this, 'GeneratedServerPasswordSecret', {
       secretName: props.generatedServerPasswordSecretName,
@@ -139,12 +134,12 @@ export class ValheimServer extends Construct {
     });
 
     //Define our EFS file system
-    const fs = new efs.FileSystem(this, 'MyEfsFileSystem', {
+    const fs = new efs.FileSystem(this, 'ValheimFileSystem', {
       vpc: this.vpc,
       encrypted: true,
-      lifecyclePolicy: efs.LifecyclePolicy.AFTER_14_DAYS,
       performanceMode: efs.PerformanceMode.GENERAL_PURPOSE,
       removalPolicy: RemovalPolicy.RETAIN,
+      enableAutomaticBackups: true
     });
     fs.addAccessPoint('AccessPoint');
     fs.connections.allowDefaultPortInternally();
@@ -153,8 +148,18 @@ export class ValheimServer extends Construct {
     const cluster = new ecs.Cluster(this, 'Cluster', {
       vpc: this.vpc,
       containerInsights: this.containerInsights,
-      capacityProviders: ['FARGATE', 'FARGATE_SPOT'],
+      enableFargateCapacityProviders: true,
     });
+
+    new PublicIPSupport(this, 'PublicIPSupport', {
+      cluster: cluster,
+      dnsConfig: props.dnsConfig
+    });
+
+    // see https://github.com/aws/aws-cdk/issues/15366
+    // Add back the old method of specifying capacity providers
+    const cfnCluster = cluster.node.defaultChild as ecs.CfnCluster;
+    cfnCluster.capacityProviders = ['FARGATE', 'FARGATE_SPOT'];
 
     //Create our ECS TaskDefinition using our cpu and memory limits
     const taskDef = new ecs.FargateTaskDefinition(this, 'TaskDef', {
@@ -200,13 +205,15 @@ export class ValheimServer extends Construct {
          * FargatePlatformVerssion VERSION1_4 is required here!
          * LATEST is not yet 1.4 at the time of thi writing
          */
-    const service = new ecs.FargateService(this, 'Service', {
+    new ecs.FargateService(this, 'Service', {
       cluster: cluster,
       taskDefinition: taskDef,
       desiredCount: 1,
       securityGroups: [securityGroup],
       platformVersion: ecs.FargatePlatformVersion.VERSION1_4,
-      assignPublicIp: this.assignPublicIp,
+      assignPublicIp: true,
+      maxHealthyPercent: 100,
+      minHealthyPercent: 0,
       capacityProviderStrategies: [
         {
           capacityProvider: 'FARGATE_SPOT',
@@ -217,54 +224,6 @@ export class ValheimServer extends Construct {
           weight: 1,
         },
       ],
-    });
-
-    /**
-         * Here we add nginx as a simple sidecar conatiner for healtchecking.
-         * The NLB cannot health check a UDP based service. Adding nginx,
-         * running as part of the same task, gives us something to healthcheck.
-         */
-    const nginx = taskDef.addContainer('nginx', {
-      image: ecs.ContainerImage.fromRegistry('nginx:alpine'),
-    });
-    nginx.addPortMappings({ containerPort: 80, hostPort: 80, protocol: ecs.Protocol.TCP });
-    securityGroup.addIngressRule(ec2.Peer.ipv4(this.vpc.vpcCidrBlock), ec2.Port.tcp(80));
-
-    //Setup our NLB, listners, and targets, all set for UDP and the Valheim port
-    const lb = new elb.NetworkLoadBalancer(this, 'LoadBalancer', {
-      vpc: this.vpc,
-      internetFacing: true,
-    });
-
-    const listener = lb.addListener('Listener', { port: VALHEIM_PORT, protocol: elb.Protocol.UDP });
-    listener.addTargets('Targets', {
-      port: VALHEIM_PORT,
-      protocol: elb.Protocol.UDP,
-      targets: [service.loadBalancerTarget({ containerName: 'server', protocol: ecs.Protocol.UDP, containerPort: VALHEIM_PORT })],
-      healthCheck: { //NOTE we are healthchecking our nginx sidecar here, not the Valheim game itself
-        enabled: true,
-        port: '80',
-        protocol: elb.Protocol.TCP,
-        healthyThresholdCount: 2,
-        unhealthyThresholdCount: 2,
-      },
-      deregistrationDelay: Duration.seconds(30),
-    });
-
-    //The NLB cannot do port ranges, so here we are.
-    const otherListener = lb.addListener('OtherListener', { port: VALHEIM_PORT+1, protocol: elb.Protocol.UDP });
-    otherListener.addTargets('Targets', {
-      port: VALHEIM_PORT+1,
-      protocol: elb.Protocol.UDP,
-      targets: [service.loadBalancerTarget({ containerName: 'server', protocol: ecs.Protocol.UDP, containerPort: VALHEIM_PORT+1 })],
-      healthCheck: { //NOTE we are healthchecking our nginx sidecar here, not the Valheim game itself
-        enabled: true,
-        port: '80',
-        protocol: elb.Protocol.TCP,
-        healthyThresholdCount: 2,
-        unhealthyThresholdCount: 2,
-      },
-      deregistrationDelay: Duration.seconds(30),
     });
   }
 }

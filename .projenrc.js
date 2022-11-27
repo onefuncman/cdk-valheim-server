@@ -1,29 +1,16 @@
-const { AwsCdkConstructLibrary, ProjectType } = require('projen');
-
-const project = new AwsCdkConstructLibrary({
+const { awscdk } = require('projen');
+const project = new awscdk.AwsCdkConstructLibrary({
   name: '@raykrueger/cdk-valheim-server',
   author: 'Ray Krueger',
   authorAddress: 'raykrueger@gmail.com',
   description: 'A CDK construct library for running a Valheim dedicated server on AWS',
-  projectType: ProjectType.LIB,
-  cdkVersion: '1.94.1',
+  cdkVersion: '2.8.0',
   defaultReleaseBranch: 'main',
-  jsiiFqn: 'projen.AwsCdkConstructLibrary',
   repositoryUrl: 'https://github.com/user/cdk-valheim-server.git',
   license: 'Apache-2.0',
   repository: 'https://github.com/raykrueger/cdk-valheim-server.git',
-  cdkDependencies: [
-    '@aws-cdk/aws-ec2',
-    '@aws-cdk/aws-ecs',
-    '@aws-cdk/aws-efs',
-    '@aws-cdk/aws-elasticloadbalancingv2',
-    '@aws-cdk/aws-secretsmanager',
-    '@aws-cdk/core',
-  ],
-  cdkAssert: true,
   dependabot: false,
   docgen: true,
-  releaseBranches: ['main'],
   releaseToNpm: true,
   releaseWorkflow: true,
   releaseEveryCommit: true,
@@ -31,7 +18,6 @@ const project = new AwsCdkConstructLibrary({
   cdkVersionPinning: true,
 
   /* AwsCdkConstructLibraryOptions */
-  // cdkAssert: true,                                                          /* Install the @aws-cdk/assert library? */
   // cdkDependencies: undefined,                                               /* Which AWS CDK modules (those that start with "@aws-cdk/") does this library require when consumed? */
   // cdkDependenciesAsDeps: true,                                              /* If this is enabled (default), all modules declared in `cdkDependencies` will be also added as normal `dependencies` (as well as `peerDependencies`). */
   // cdkTestDependencies: undefined,                                           /* AWS CDK modules required for testing. */
