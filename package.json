@@ -1,9 +1,9 @@
 {
-  "name": "@raykrueger/cdk-valheim-server",
+  "name": "@onefuncman/cdk-valheim-server",
   "description": "A CDK construct library for running a Valheim dedicated server on AWS",
   "repository": {
     "type": "git",
-    "url": "https://github.com/raykrueger/cdk-valheim-server.git"
+    "url": "https://github.com/onefuncman/cdk-valheim-server.git"
   },
   "scripts": {
     "build": "npx projen build",
